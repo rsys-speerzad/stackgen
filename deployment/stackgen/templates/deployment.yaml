@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stackgen.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "stackgen.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "stackgen.name" . }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.db.host }}
+            - name: DB_PORT
+              value: {{ .Values.db.port }}
+            - name: DB_USER
+              value: {{ .Values.db.user }}
+            - name: DB_PASS
+              value: {{ .Values.db.pass }}
+            - name: DB_NAME
+              value: {{ .Values.db.name }}

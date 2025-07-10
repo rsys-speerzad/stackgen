@@ -1,0 +1,17 @@
+replicaCount: 1
+
+image:
+  repository: your-repo/your-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+db:
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  pass: "admin"
+  name: "stackgen"
