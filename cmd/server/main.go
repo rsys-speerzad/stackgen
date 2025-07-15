@@ -26,7 +26,9 @@ func Run() {
 	configPath := flag.String("config", "config.json", "path to config file")
 	createTestData := flag.Bool("testdata", false, "create test data")
 	flag.Parse()
-	configs.ParseEnv(*configPath)
+	if configPath != nil && *configPath != "" {
+		configs.ParseEnv(*configPath)
+	}
 	// initialize and auto migrate the db schemas
 	store.AutoMigrate()
 	// create test data if needed

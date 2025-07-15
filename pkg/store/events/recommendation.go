@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"github.com/rsys-speerzad/stackgen/pkg/models"
 )
@@ -20,74 +19,36 @@ func (s *store) GetRecommendations(eventID string) (*models.RecommendedSlot, err
 		}
 		return nil, err
 	}
-	if err := s.db.Preload("Availabilities", "event_id IS NULL and start_time >= ?", event.EventSlots[0].StartTime).Find(&users).Error; err != nil {
+	if err := s.db.Preload("Availabilities", "event_id IS NULL").Find(&users).Error; err != nil {
 		fmt.Println("Error retrieving users:", err)
 		return nil, err
 	}
-	slots := make(map[uuid.UUID][][]string)
-	for _, user := range users {
-		// check if user has any availability for given the event slot
-		if len(user.Availabilities) == 0 {
-			continue
+	// Logic to calculate recommended slots based on event and user availability
+	// This is a placeholder; actual implementation would involve more complex logic
+	var finalSlot models.EventSlot
+	var finalAvailableUsers, finalMissingUsers []string
+	for i := 0; i < len(event.EventSlots); i++ {
+		var availableUsers, missingUsers []string
+		for _, user := range users {
+			mergedAvailabilities := MergeConsecutiveAvailabilities(user.Availabilities)
+			if checkAvailability(event.EventSlots[i], mergedAvailabilities) {
+				availableUsers = append(availableUsers, user.Name)
+			} else {
+				missingUsers = append(missingUsers, user.Name)
+			}
 		}
-		consecutiveAvailabilities := MergeConsecutiveAvailabilities(user.Availabilities)
-		for _, slot := range event.EventSlots {
-			available := false
-			for _, availability := range consecutiveAvailabilities {
-				if slot.StartTime.Before(availability.StartTime) && slot.EndTime.After(availability.EndTime) ||
-					slot.StartTime.Equal(availability.StartTime) && slot.EndTime.Equal(availability.EndTime) {
-					available = true
-					slots[slot.ID][0] = append(slots[slot.ID][0], user.ID.String())
-					break
-				}
-			}
-			if !available {
-				slots[slot.ID] = append(slots[slot.ID], []string{user.ID.String()})
-			}
+		if len(availableUsers) > len(finalAvailableUsers) {
+			finalSlot = event.EventSlots[i]
+			finalAvailableUsers = availableUsers
+			finalMissingUsers = missingUsers
 		}
 	}
-
-	// for each event slot, check which users are available, and which are not
-	// finalSlot := event.EventSlots[0]
-	// availableUser, missingUsers := checkUserAvailability(userAvailabilities, &finalSlot)
-	// for i := 1; i < len(event.EventSlots); i++ {
-	// 	currSlotAvailableUser, currSlotMissingUsers := checkUserAvailability(userAvailabilities, &event.EventSlots[i])
-	// 	if len(currSlotAvailableUser) > len(availableUser) {
-	// 		availableUser = currSlotAvailableUser
-	// 		missingUsers = currSlotMissingUsers
-	// 		finalSlot = event.EventSlots[i]
-	// 	}
-	// }
-	// return the slot with the most available users
 	return &models.RecommendedSlot{
-		// StartTime:      finalSlot.StartTime,
-		// EndTime:        finalSlot.EndTime,
-		// UserIDs:        availableUser,
-		// MissingUserIDs: missingUsers,
+		StartTime:      finalSlot.StartTime,
+		EndTime:        finalSlot.EndTime,
+		UserIDs:        finalAvailableUsers,
+		MissingUserIDs: finalMissingUsers,
 	}, nil
-}
-
-func checkUserAvailability(availabilities []*models.UserAvailability, slot *models.EventSlot) ([]string, []string) {
-	availableUsers := make(map[string]struct{})
-	missingUsers := make(map[string]struct{})
-	for _, availability := range availabilities {
-		if slot.StartTime.Before(availability.StartTime) && slot.EndTime.After(availability.EndTime) ||
-			slot.StartTime.Equal(availability.StartTime) && slot.EndTime.Equal(availability.EndTime) {
-			availableUsers[availability.UserID.String()] = struct{}{}
-			continue
-		}
-		missingUsers[availability.UserID.String()] = struct{}{}
-
-	}
-	var availableUserIDs []string
-	var missingUserIDs []string
-	for userID := range availableUsers {
-		availableUserIDs = append(availableUserIDs, userID)
-	}
-	for userID := range missingUsers {
-		missingUserIDs = append(missingUserIDs, userID)
-	}
-	return availableUserIDs, missingUserIDs
 }
 
 func MergeConsecutiveAvailabilities(slots []*models.UserAvailability) []*models.UserAvailability {
@@ -120,4 +81,13 @@ func MergeConsecutiveAvailabilities(slots []*models.UserAvailability) []*models.
 	// Add the last one
 	merged = append(merged, current)
 	return merged
+}
+
+func checkAvailability(slot models.EventSlot, availabilities []*models.UserAvailability) bool {
+	for _, availability := range availabilities {
+		if slot.StartTime.Before(availability.EndTime) && slot.EndTime.After(availability.StartTime) {
+			return true
+		}
+	}
+	return false
 }

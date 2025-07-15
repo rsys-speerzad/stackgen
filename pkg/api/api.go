@@ -77,3 +77,18 @@ func toHTTPStatusCode(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+
+func ResponseWriter(w http.ResponseWriter, data interface{}, statusCode int) {
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	if data != nil {
+		if jsonMsg, err := json.Marshal(data); err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(statusCode)
+			w.Write(jsonMsg)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}

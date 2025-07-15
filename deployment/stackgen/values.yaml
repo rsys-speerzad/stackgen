@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: your-repo/your-app
+  repository: speerzad/stackgen
   tag: latest
   pullPolicy: IfNotPresent
 
